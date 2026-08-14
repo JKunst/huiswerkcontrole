@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2B3A55">
+<title>Huiswerkcontrole — voorbeeld</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#16181d; --paper:#faf9f6; --line:#e2e0da; --muted:#6b6f78;
+  --chrome:#2b3a55; --leeg:#dcdad4; --groen:#2f8f4e; --rood:#c6402f;
+  --naam-breedte:104px; --cel-breedte:52px; --rij-hoogte:46px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%}
+body{background:var(--paper);color:var(--ink);font:400 16px/1.4 "IBM Plex Sans",system-ui,sans-serif;overscroll-behavior:none}
+button{font:inherit;color:inherit}
+header{position:sticky;top:0;z-index:20;background:var(--chrome);color:#fff;
+  padding:calc(10px + env(safe-area-inset-top)) 14px 10px;display:flex;align-items:center;gap:10px}
+header h1{font-size:17px;font-weight:600;margin:0;flex:1;letter-spacing:.01em}
+header .sub{display:block;font-size:12px;font-weight:400;opacity:.72;font-family:"IBM Plex Mono",monospace}
+.knop{border:1px solid rgba(255,255,255,.35);background:transparent;color:#fff;border-radius:8px;
+  padding:7px 11px;font-size:14px;font-weight:500;cursor:pointer}
+.knop:active{background:rgba(255,255,255,.16)}
+main{padding:16px 14px calc(28px + env(safe-area-inset-bottom))}
+.melding{background:#fff3e0;border:1px solid #e8c98f;color:#7a5a1e;border-radius:10px;
+  padding:10px 12px;font-size:13px;margin-bottom:14px}
+.tabs{display:flex;gap:6px;margin-bottom:10px}
+.tab{flex:1;border:1px solid var(--line);background:#fff;border-radius:8px;padding:9px 4px;
+  font-size:14px;font-weight:600;cursor:pointer;color:var(--muted)}
+.tab.actief{background:var(--chrome);border-color:var(--chrome);color:#fff}
+.raster{overflow:auto;border:1px solid var(--line);border-radius:10px;background:#fff;
+  max-height:calc(100dvh - 210px);-webkit-overflow-scrolling:touch}
+table{border-collapse:separate;border-spacing:0;width:max-content;min-width:100%}
+th,td{padding:0;margin:0}
+thead th{position:sticky;top:0;z-index:2;background:#f1efe9;border-bottom:1px solid var(--line);
+  border-left:1px solid var(--line);height:52px;min-width:var(--cel-breedte);
+  font-family:"IBM Plex Mono",monospace;font-size:14px;font-weight:600}
+thead th .datum{display:block;font-size:10px;font-weight:500;color:var(--muted);margin-top:2px}
+thead th.hoek{left:0;z-index:4;width:var(--naam-breedte);min-width:var(--naam-breedte);
+  border-left:0;text-align:left;padding-left:12px;font-family:"IBM Plex Sans",sans-serif;
+  font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+tbody th{position:sticky;left:0;z-index:1;background:#fff;text-align:left;padding:0 10px;
+  width:var(--naam-breedte);min-width:var(--naam-breedte);height:var(--rij-hoogte);
+  border-bottom:1px solid var(--line);border-right:1px solid var(--line);
+  font-size:15px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+tbody tr:nth-child(even) th{background:#fcfbf9}
+tbody td{border-bottom:1px solid var(--line);border-left:1px solid var(--line)}
+.cel{width:var(--cel-breedte);height:var(--rij-hoogte);border:0;display:block;background:var(--leeg);
+  cursor:pointer;transition:background .1s}
+.cel[data-w="1"]{background:var(--groen)}
+.cel[data-w="2"]{background:var(--rood)}
+.cel:focus-visible{outline:3px solid var(--chrome);outline-offset:-3px}
+.legenda{display:flex;gap:14px;margin:12px 2px 0;font-size:13px;color:var(--muted);flex-wrap:wrap}
+.legenda span{display:flex;align-items:center;gap:6px}
+.stip{width:14px;height:14px;border-radius:4px;background:var(--leeg);display:inline-block}
+.stip.g{background:var(--groen)} .stip.r{background:var(--rood)}
+</style>
+</head>
+<body>
+<header>
+  <h1>H4A<span class="sub" id="sub">6 leerlingen</span></h1>
+  <button class="knop" id="reset">Reset voorbeeld</button>
+</header>
+<main>
+  <p class="melding">Voorbeeld met nepdata — niets wordt opgeslagen. Tik op een vakje om het gedrag te zien: grijs → groen → rood → grijs. In de echte app registreert dit ook de controledatum.</p>
+  <div class="tabs" id="tabs"></div>
+  <div class="raster"><table>
+    <thead><tr><th class="hoek">Naam</th></tr></thead>
+    <tbody></tbody>
+  </table></div>
+  <div class="legenda">
+    <span><i class="stip"></i>niet gecontroleerd</span>
+    <span><i class="stip g"></i>gemaakt</span>
+    <span><i class="stip r"></i>niet gemaakt</span>
+  </div>
+</main>
+<script>
+const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+const opdrachtenStart = [
+  {id:1, nummer:'12abc', datum:'2026-08-28', periode:1},
+  {id:2, nummer:'13',    datum:'2026-08-31', periode:1},
+  {id:3, nummer:'§4.2',  datum:'2026-09-02', periode:1},
+  {id:4, nummer:'14bd',  datum:null,         periode:1},
+  {id:5, nummer:'§5.1',  datum:'2026-10-12', periode:2},
+  {id:6, nummer:'16',    datum:'2026-10-15', periode:2},
+  {id:7, nummer:'§5.4',  datum:null,         periode:2},
+  {id:8, nummer:'§6.1',  datum:'2026-12-03', periode:3},
+  {id:9, nummer:'18ac',  datum:null,         periode:3},
+  {id:10, nummer:'§7.2', datum:null,         periode:4},
+];
+const leerlingenStart = [
+  {id:1, naam:'Sanne'}, {id:2, naam:'Jasper'}, {id:3, naam:'Noor'},
+  {id:4, naam:'Bram'},  {id:5, naam:'Fenna'},  {id:6, naam:'Timo'},
+];
+// leerling-opdracht -> 0 niet gecontroleerd, 1 gemaakt, 2 niet gemaakt
+const statusStart = {
+  '1-1':1,'2-1':1,'3-1':2,'4-1':1,'5-1':0,'6-1':1,
+  '1-2':1,'2-2':2,'3-2':1,'4-2':1,'5-2':1,'6-2':2,
+  '1-3':0,'2-3':1,'3-3':0,'4-3':2,'5-3':0,'6-3':0,
+  '1-4':0,'2-4':0,'3-4':0,'4-4':0,'5-4':0,'6-4':0,
+  '1-5':1,'2-5':1,'3-5':0,'4-5':2,'5-5':1,'6-5':0,
+  '1-6':2,'2-6':1,'3-6':1,'4-6':1,'5-6':0,'6-6':0,
+  '1-7':0,'2-7':0,'3-7':0,'4-7':0,'5-7':0,'6-7':0,
+  '1-8':1,'2-8':0,'3-8':2,'4-8':0,'5-8':0,'6-8':1,
+  '1-9':0,'2-9':0,'3-9':0,'4-9':0,'5-9':0,'6-9':0,
+  '1-10':0,'2-10':0,'3-10':0,'4-10':0,'5-10':0,'6-10':0,
+};
+
+let status = {};
+let huidigePeriode = 1;
+const kort = iso => iso ? iso.slice(8,10) + '-' + iso.slice(5,7) : '—';
+
+function teken() {
+  status = {...statusStart};
+
+  document.getElementById('tabs').innerHTML = [1,2,3,4].map(p =>
+    `<button class="tab${p === huidigePeriode ? ' actief' : ''}" data-p="${p}">Periode ${p}</button>`).join('');
+  document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
+    huidigePeriode = Number(t.dataset.p);
+    teken();
+  });
+
+  const opdrachten = opdrachtenStart.filter(o => o.periode === huidigePeriode);
+  document.getElementById('sub').textContent =
+    `${leerlingenStart.length} leerlingen · ${opdrachten.length} opdracht${opdrachten.length === 1 ? '' : 'en'}`;
+
+  const kop = document.querySelector('thead tr');
+  kop.innerHTML = '<th class="hoek">Naam</th>' + (opdrachten.length ? opdrachten.map(o =>
+    `<th data-op="${o.id}">${esc(o.nummer)}<span class="datum" id="datum-${o.id}">${kort(o.datum)}</span></th>`).join('')
+    : '<th style="min-width:140px;font-weight:400;color:var(--muted)">geen opdrachten</th>');
+
+  const lijf = document.querySelector('tbody');
+  lijf.innerHTML = leerlingenStart.map(l => `<tr>
+      <th>${esc(l.naam)}</th>
+      ${opdrachten.map(o => `<td><button class="cel" data-w="${status[l.id+'-'+o.id]||0}"
+        data-l="${l.id}" data-o="${o.id}" aria-label="${esc(l.naam)}, opdracht ${esc(o.nummer)}"></button></td>`).join('')}
+    </tr>`).join('');
+
+  lijf.querySelectorAll('.cel').forEach(cel => cel.onclick = () => {
+    const nieuw = (Number(cel.dataset.w) + 1) % 3;
+    cel.dataset.w = nieuw;
+    status[cel.dataset.l + '-' + cel.dataset.o] = nieuw;
+    if (navigator.vibrate) navigator.vibrate(8);
+    const veld = document.getElementById('datum-' + cel.dataset.o);
+    if (nieuw !== 0 && veld.textContent === '—') veld.textContent = kort(new Date().toISOString().slice(0,10));
+  });
+}
+document.getElementById('reset').onclick = () => { huidigePeriode = 1; teken(); };
+teken();
+</script>
+</body>
+</html>
